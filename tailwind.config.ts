@@ -28,6 +28,14 @@ export default {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
 				},
+				thera: {
+					purple: '#9b87f5',
+					lightpurple: '#E5DEFF',
+					pink: '#FFDEE2',
+					blue: '#D3E4FD',
+					peach: '#FDE1D3',
+					grey: '#F1F0FB',
+				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))'
