@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface VoiceState {
@@ -75,8 +74,8 @@ interface SpeechRecognition extends EventTarget {
 }
 
 // Get the correct SpeechRecognition constructor
-const SpeechRecognitionAPI = window.SpeechRecognition || 
-                           (window as any).webkitSpeechRecognition;
+const SpeechRecognitionAPI = (window as any).SpeechRecognition || 
+                           (window as any).webkitSpeechRecognition as SpeechRecognitionClass;
 const hasSpeechRecognition = !!SpeechRecognitionAPI;
 
 export const VoiceProvider = ({ children }: { children: ReactNode }) => {

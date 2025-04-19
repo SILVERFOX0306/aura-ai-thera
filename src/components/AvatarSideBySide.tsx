@@ -53,13 +53,13 @@ const AvatarSideBySide = ({ className }: AvatarSideBySideProps) => {
           {(!expanded || window.innerWidth >= 768) && (
             <PersistentCamera
               minimized={false}
-              className="h-full"
+              className="h-[400px]" // Increased height
             />
           )}
           
           <UserAvatar 
             speaking={voiceState.isSpeaking}
-            className="h-full"
+            className="h-[400px]" // Matched height
           />
         </div>
       </div>

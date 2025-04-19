@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useVoice } from '@/contexts/VoiceContext';
 import { useEmotion } from '@/contexts/EmotionContext';
@@ -37,7 +36,6 @@ const AutoConversation = ({ onMessageReceived, className }: AutoConversationProp
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const firstRenderRef = useRef(true);
 
-  // Sample responses for the therapy chat
   const sampleResponses = [
     "How does that make you feel?",
     "Tell me more about that experience.",
@@ -51,17 +49,33 @@ const AutoConversation = ({ onMessageReceived, className }: AutoConversationProp
     "Let's explore this a bit more. When did you first notice these feelings?"
   ];
 
-  // Scroll to bottom when messages change
+  const getEmotionBasedResponse = (emotion: string) => {
+    switch(emotion) {
+      case 'sad':
+        return "I notice you're feeling down. Let's talk about what's troubling you. Remember, it's okay to feel this way.";
+      case 'angry':
+        return "I can sense that you're frustrated. Let's take a deep breath together and explore what's causing these strong feelings.";
+      case 'anxious':
+        return "You seem anxious. We can work through this together. Would you like to try a quick breathing exercise?";
+      case 'happy':
+        return "Your positive energy is wonderful! What's bringing you joy right now?";
+      case 'surprised':
+        return "Something seems to have caught you off guard. Would you like to talk about what surprised you?";
+      case 'calm':
+        return "You appear to be in a peaceful state. This is a good time to reflect on your thoughts.";
+      default:
+        return "How are you feeling right now? Would you like to explore those feelings together?";
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Start conversation when component mounts
   useEffect(() => {
     if (firstRenderRef.current) {
       firstRenderRef.current = false;
       
-      // Speak the first message after a short delay
       setTimeout(() => {
         if (isAudioEnabled && messages.length > 0) {
           speak(messages[0].content);
@@ -71,10 +85,8 @@ const AutoConversation = ({ onMessageReceived, className }: AutoConversationProp
     }
   }, []);
 
-  // Listen for voice state changes
   useEffect(() => {
     if (voiceState.transcript && !voiceState.isListening) {
-      // If we have a transcript and we're not listening anymore, send the message
       handleSendMessage(voiceState.transcript);
       clearTranscript();
     }
@@ -93,57 +105,29 @@ const AutoConversation = ({ onMessageReceived, className }: AutoConversationProp
     setMessages(prev => [...prev, newUserMessage]);
     setInputMessage('');
 
-    // Notify parent component
     if (onMessageReceived) {
       onMessageReceived(newUserMessage);
     }
 
-    // Simulate AI response (with delay)
     setTimeout(() => {
-      // Get a response that matches the user's emotional state if tracking
-      let randomResponse = sampleResponses[Math.floor(Math.random() * sampleResponses.length)];
-      
-      if (isTracking) {
-        // Adjust response based on detected emotion
-        switch(emotionState.currentEmotion) {
-          case 'sad':
-            randomResponse = "I can see you're feeling down. Remember that it's okay to feel sad sometimes. Would you like to talk about what's causing these feelings?";
-            break;
-          case 'angry':
-            randomResponse = "I notice you seem frustrated. Taking a deep breath might help. Would you like to talk about what's bothering you?";
-            break;
-          case 'anxious':
-            randomResponse = "I can sense some anxiety. Let's focus on what we can control right now. What's on your mind?";
-            break;
-          case 'happy':
-            randomResponse = "You seem to be in good spirits! What positive things have been happening in your life lately?";
-            break;
-          default:
-            // Use random response
-        }
-      }
+      const emotionBasedResponse = getEmotionBasedResponse(emotionState.currentEmotion);
       
       const newAiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: randomResponse,
+        content: emotionBasedResponse,
         sender: 'thera',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, newAiMessage]);
       
-      // Notify parent component
       if (onMessageReceived) {
         onMessageReceived(newAiMessage);
       }
       
-      // Speak the response if audio is enabled
       if (isAudioEnabled) {
-        speak(randomResponse);
-        // Note: the microphone will be activated automatically when TTS ends
-        // (configured in VoiceContext)
+        speak(emotionBasedResponse);
       } else {
-        // If audio is disabled, start listening after a delay
         setTimeout(() => {
           if (isInConversation) {
             startListening();
@@ -195,7 +179,6 @@ const AutoConversation = ({ onMessageReceived, className }: AutoConversationProp
           </div>
         </div>
 
-        {/* Chat messages */}
         <div className="bg-white/60 rounded-md h-64 overflow-y-auto p-4">
           <div className="flex flex-col space-y-4">
             {messages.map(message => (
@@ -218,7 +201,6 @@ const AutoConversation = ({ onMessageReceived, className }: AutoConversationProp
           </div>
         </div>
 
-        {/* Voice status */}
         <div className="bg-white/60 rounded-md p-3 min-h-16">
           {voiceState.isListening && (
             <div className="flex gap-2 items-center text-thera-purple">
@@ -255,7 +237,6 @@ const AutoConversation = ({ onMessageReceived, className }: AutoConversationProp
           )}
         </div>
 
-        {/* Manual input */}
         <div className="flex gap-2">
           <Textarea
             value={inputMessage}
