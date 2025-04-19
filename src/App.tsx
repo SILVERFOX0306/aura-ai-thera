@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +11,8 @@ import Therapy from "./pages/Therapy";
 import MoodTracker from "./pages/MoodTracker";
 import Journal from "./pages/Journal";
 import NotFound from "./pages/NotFound";
+import { EmotionProvider } from "./contexts/EmotionContext";
+import { VoiceProvider } from "./contexts/VoiceContext";
 
 const queryClient = new QueryClient();
 
@@ -26,21 +29,25 @@ const ScrollToTop = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/setup" element={<Setup />} />
-          <Route path="/therapy" element={<Therapy />} />
-          <Route path="/mood" element={<MoodTracker />} />
-          <Route path="/journal" element={<Journal />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <EmotionProvider>
+      <VoiceProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/setup" element={<Setup />} />
+              <Route path="/therapy" element={<Therapy />} />
+              <Route path="/mood" element={<MoodTracker />} />
+              <Route path="/journal" element={<Journal />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </VoiceProvider>
+    </EmotionProvider>
   </QueryClientProvider>
 );
 

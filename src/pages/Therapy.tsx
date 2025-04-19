@@ -16,6 +16,10 @@ import EmotionBubble from "@/components/EmotionBubble";
 import TherapyTip from "@/components/TherapyTip";
 import BreathingExercise from "@/components/BreathingExercise";
 import FacialEmotionDetector from "@/components/FacialEmotionDetector";
+import PersistentCamera from "@/components/PersistentCamera";
+import VoiceControl from "@/components/VoiceControl";
+import { useEmotion } from "@/contexts/EmotionContext";
+import { useVoice } from "@/contexts/VoiceContext";
 
 // Avatar component with emotion awareness
 const TheraAvatar = ({ emotion = 'neutral' }: { emotion?: string }) => {
@@ -63,6 +67,9 @@ interface Message {
 }
 
 const Therapy = () => {
+  const { emotionState, isTracking } = useEmotion();
+  const { voiceState, speak } = useVoice();
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -73,7 +80,6 @@ const Therapy = () => {
   ]);
   
   const [inputMessage, setInputMessage] = useState("");
-  const [isListening, setIsListening] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -82,6 +88,13 @@ const Therapy = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Handle voice transcript updates
+  const handleTranscriptUpdate = (transcript: string) => {
+    if (transcript.trim() && transcript !== inputMessage) {
+      setInputMessage(transcript);
+    }
+  };
 
   const handleSendMessage = () => {
     if (inputMessage.trim() === '') return;
@@ -98,7 +111,29 @@ const Therapy = () => {
 
     // Simulate AI response (with delay)
     setTimeout(() => {
-      const randomResponse = sampleResponses[Math.floor(Math.random() * sampleResponses.length)];
+      // Get a response that matches the user's emotional state if tracking
+      let randomResponse = sampleResponses[Math.floor(Math.random() * sampleResponses.length)];
+      
+      if (isTracking) {
+        // Adjust response based on detected emotion
+        switch(emotionState.currentEmotion) {
+          case 'sad':
+            randomResponse = "I can see you're feeling down. Remember that it's okay to feel sad sometimes. Would you like to talk about what's causing these feelings?";
+            break;
+          case 'angry':
+            randomResponse = "I notice you seem frustrated. Taking a deep breath might help. Would you like to talk about what's bothering you?";
+            break;
+          case 'anxious':
+            randomResponse = "I can sense some anxiety. Let's focus on what we can control right now. What's on your mind?";
+            break;
+          case 'happy':
+            randomResponse = "You seem to be in good spirits! What positive things have been happening in your life lately?";
+            break;
+          default:
+            // Use random response
+        }
+      }
+      
       const newAiMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: randomResponse,
@@ -107,17 +142,16 @@ const Therapy = () => {
       };
       
       setMessages(prev => [...prev, newAiMessage]);
+      
+      // Speak the response if audio is enabled
+      if (isAudioEnabled) {
+        speak(randomResponse);
+      }
     }, 1000);
-  };
-
-  const toggleMicrophone = () => {
-    setIsListening(!isListening);
-    // In a real app, we would start/stop speech recognition here
   };
 
   const toggleAudio = () => {
     setIsAudioEnabled(!isAudioEnabled);
-    // In a real app, we would mute/unmute audio here
   };
 
   return (
@@ -142,85 +176,146 @@ const Therapy = () => {
         </div>
       </header>
       
-      {/* Main Content */}
-      <div className="flex-grow p-4 flex flex-col">
-        {/* Avatar area */}
-        <Card className="glass-card overflow-hidden mb-4">
-          <TheraAvatar emotion="neutral" />
-        </Card>
+      {/* Tabs for different modes */}
+      <Tabs defaultValue="chat" className="w-full px-4">
+        <TabsList className="grid grid-cols-4">
+          <TabsTrigger value="chat">Chat</TabsTrigger>
+          <TabsTrigger value="voice">Voice</TabsTrigger>
+          <TabsTrigger value="camera">Camera</TabsTrigger>
+          <TabsTrigger value="relax">Relax</TabsTrigger>
+        </TabsList>
         
-        {/* Chat messages */}
-        <Card className="glass-card flex-grow p-4 mb-4 overflow-y-auto">
-          <div className="flex flex-col space-y-4">
-            {messages.map(message => (
-              <div 
-                key={message.id} 
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div 
-                  className={`max-w-[80%] p-3 rounded-2xl ${
-                    message.sender === 'user' 
-                      ? 'bg-thera-purple text-white rounded-tr-none' 
-                      : 'bg-white rounded-tl-none'
-                  }`}
-                >
-                  {message.content}
-                </div>
+        {/* Chat Mode */}
+        <TabsContent value="chat" className="mt-4 space-y-4">
+          {/* Main Content */}
+          <div className="flex-grow flex flex-col space-y-4">
+            {/* Avatar area */}
+            <Card className="glass-card overflow-hidden">
+              <TheraAvatar emotion={emotionState.currentEmotion} />
+            </Card>
+            
+            {/* Chat messages */}
+            <Card className="glass-card flex-grow p-4 overflow-y-auto max-h-96">
+              <div className="flex flex-col space-y-4">
+                {messages.map(message => (
+                  <div 
+                    key={message.id} 
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div 
+                      className={`max-w-[80%] p-3 rounded-2xl ${
+                        message.sender === 'user' 
+                          ? 'bg-thera-purple text-white rounded-tr-none' 
+                          : 'bg-white rounded-tl-none'
+                      }`}
+                    >
+                      {message.content}
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
               </div>
-            ))}
-            <div ref={messagesEndRef} />
+            </Card>
+            
+            {/* Input area */}
+            <div className="flex gap-2 items-end">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="rounded-full"
+                onClick={toggleAudio}
+              >
+                {isAudioEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="rounded-full"
+              >
+                <Image className="h-5 w-5" />
+              </Button>
+              
+              <Textarea
+                value={inputMessage}
+                onChange={e => setInputMessage(e.target.value)}
+                placeholder="Type your message here..."
+                className="thera-input flex-grow resize-none"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+              
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className={`rounded-full ${voiceState.isListening ? 'bg-thera-pink' : ''}`}
+                onClick={() => {
+                  if (voiceState.isListening) {
+                    // If we were listening, send the current transcript
+                    if (voiceState.transcript) {
+                      setInputMessage(voiceState.transcript);
+                      setTimeout(handleSendMessage, 100);
+                    }
+                  }
+                }}
+              >
+                {voiceState.isListening ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+              </Button>
+              
+              <Button 
+                className="thera-button"
+                onClick={handleSendMessage}
+              >
+                <Send className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
-        </Card>
+        </TabsContent>
         
-        {/* Input area */}
-        <div className="flex gap-2 items-end">
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="rounded-full"
-            onClick={toggleAudio}
-          >
-            {isAudioEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-          </Button>
+        {/* Voice Mode */}
+        <TabsContent value="voice" className="mt-4 space-y-4">
+          <TheraAvatar emotion={emotionState.currentEmotion} />
+          <VoiceControl onTranscriptUpdate={handleTranscriptUpdate} />
           
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="rounded-full"
-          >
-            <Image className="h-5 w-5" />
-          </Button>
-          
-          <Textarea
-            value={inputMessage}
-            onChange={e => setInputMessage(e.target.value)}
-            placeholder="Type your message here..."
-            className="thera-input flex-grow resize-none"
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
+          <div className="mt-4 flex gap-2">
+            <Button 
+              className="thera-button flex-1" 
+              onClick={handleSendMessage}
+              disabled={!inputMessage.trim()}
+            >
+              Send Voice Message
+            </Button>
+          </div>
+        </TabsContent>
+        
+        {/* Camera Mode */}
+        <TabsContent value="camera" className="mt-4 space-y-4">
+          <PersistentCamera />
+          <TherapyTip 
+            title="Emotion Tracking" 
+            content="Your facial expressions help THERA understand how you're feeling. This information is used to personalize your therapy experience."
+            color="purple"
           />
-          
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className={`rounded-full ${isListening ? 'bg-thera-pink' : ''}`}
-            onClick={toggleMicrophone}
-          >
-            {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </Button>
-          
-          <Button 
-            className="thera-button"
-            onClick={handleSendMessage}
-          >
-            <Send className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
+        </TabsContent>
+        
+        {/* Relax Mode */}
+        <TabsContent value="relax" className="mt-4 space-y-4">
+          <BreathingExercise />
+          <TherapyTip 
+            title="Take a Moment" 
+            content="Deep breathing activates your parasympathetic nervous system, helping calm anxiety and reduce stress."
+            color="blue"
+          />
+        </TabsContent>
+      </Tabs>
+      
+      {/* Persistent controls (minimized versions) */}
+      <PersistentCamera minimized />
+      <VoiceControl minimized onTranscriptUpdate={handleTranscriptUpdate} />
     </div>
   );
 };
