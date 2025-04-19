@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface EmotionBubbleProps {
-  emotion: 'happy' | 'sad' | 'angry' | 'neutral' | 'anxious' | 'calm';
+  emotion: 'happy' | 'sad' | 'angry' | 'neutral' | 'anxious' | 'calm' | 'surprised';
   intensity?: number; // 1-10
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -30,6 +30,8 @@ const EmotionBubble = ({
         return 'from-orange-300 to-red-400';
       case 'calm':
         return 'from-teal-300 to-cyan-500';
+      case 'surprised':
+        return 'from-purple-300 to-fuchsia-500';
       case 'neutral':
       default:
         return 'from-gray-300 to-gray-400';
@@ -75,6 +77,7 @@ const EmotionBubble = ({
         {emotion === 'angry' && '😡'}
         {emotion === 'anxious' && '😰'}
         {emotion === 'calm' && '😌'}
+        {emotion === 'surprised' && '😮'}
         {emotion === 'neutral' && '😐'}
       </div>
     </div>

@@ -28,24 +28,73 @@ const defaultVoiceState: VoiceState = {
 
 const VoiceContext = createContext<VoiceContextType | undefined>(undefined);
 
-// Speech recognition interface
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const hasSpeechRecognition = !!SpeechRecognition;
+// Define the SpeechRecognition interface
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionError extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognitionClass {
+  new (): SpeechRecognition;
+  prototype: SpeechRecognition;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionError) => void) | null;
+  onend: (() => void) | null;
+}
+
+// Get the correct SpeechRecognition constructor
+const SpeechRecognitionAPI = window.SpeechRecognition || 
+                           (window as any).webkitSpeechRecognition;
+const hasSpeechRecognition = !!SpeechRecognitionAPI;
 
 export const VoiceProvider = ({ children }: { children: ReactNode }) => {
   const [voiceState, setVoiceState] = useState<VoiceState>(defaultVoiceState);
-  const [recognition, setRecognition] = useState<any>(null);
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const [speechSynthesis, setSpeechSynthesis] = useState<SpeechSynthesisUtterance | null>(null);
-  
+  const [autoRestartListening, setAutoRestartListening] = useState(true);
+  const [silenceTimeout, setSilenceTimeout] = useState<NodeJS.Timeout | null>(null);
+
   // Initialize speech recognition
   useEffect(() => {
     if (hasSpeechRecognition) {
-      const recognitionInstance = new SpeechRecognition();
+      const recognitionInstance = new SpeechRecognitionAPI();
       recognitionInstance.continuous = true;
       recognitionInstance.interimResults = true;
       recognitionInstance.lang = "en-US";
       
-      recognitionInstance.onresult = (event: any) => {
+      recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
         let interimTranscript = '';
         let finalTranscript = voiceState.transcript;
         
@@ -63,17 +112,40 @@ export const VoiceProvider = ({ children }: { children: ReactNode }) => {
           transcript: finalTranscript.trim(),
           partialTranscript: interimTranscript
         }));
+        
+        // Reset silence detection on speech
+        if (silenceTimeout) {
+          clearTimeout(silenceTimeout);
+        }
+        
+        // Set new silence detection timer
+        setSilenceTimeout(setTimeout(() => {
+          if (voiceState.isListening) {
+            console.log("Silence detected, stopping listening");
+            stopListening();
+            // Process the complete transcript here
+            if (finalTranscript.trim() || interimTranscript.trim()) {
+              console.log("Processing transcript:", finalTranscript || interimTranscript);
+              // The transcript processing will be handled by the parent component
+            }
+          }
+        }, 2000)); // 2 second silence detection
       };
       
-      recognitionInstance.onerror = (event: any) => {
+      recognitionInstance.onerror = (event: SpeechRecognitionError) => {
         console.error("Speech recognition error", event.error);
         setVoiceState(prev => ({ ...prev, isListening: false }));
       };
       
       recognitionInstance.onend = () => {
-        if (voiceState.isListening) {
+        if (voiceState.isListening && autoRestartListening) {
           // If we still want to listen, restart recognition
-          recognitionInstance.start();
+          try {
+            recognitionInstance.start();
+          } catch (e) {
+            console.log("Could not restart recognition: ", e);
+            setVoiceState(prev => ({ ...prev, isListening: false }));
+          }
         }
       };
       
@@ -90,6 +162,10 @@ export const VoiceProvider = ({ children }: { children: ReactNode }) => {
         if (voiceState.isListening) {
           recognition.stop();
         }
+      }
+      
+      if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
       }
     };
   }, []);
@@ -111,6 +187,11 @@ export const VoiceProvider = ({ children }: { children: ReactNode }) => {
       recognition.stop();
       setVoiceState(prev => ({ ...prev, isListening: false }));
       console.log("Stopped listening");
+      
+      if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
+        setSilenceTimeout(null);
+      }
     }
   };
   
@@ -151,6 +232,14 @@ export const VoiceProvider = ({ children }: { children: ReactNode }) => {
     utterance.onend = () => {
       setVoiceState(prev => ({ ...prev, isSpeaking: false }));
       setSpeechSynthesis(null);
+      
+      // Auto start listening after speaking finishes
+      if (autoRestartListening) {
+        setTimeout(() => {
+          clearTranscript();
+          startListening();
+        }, 300); // Short delay to avoid cutting off the last word
+      }
     };
     
     window.speechSynthesis.speak(utterance);

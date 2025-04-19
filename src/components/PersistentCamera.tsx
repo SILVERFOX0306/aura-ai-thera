@@ -16,16 +16,19 @@ const simulateEmotionDetection = () => {
 interface PersistentCameraProps {
   minimized?: boolean;
   onEmotionDetected?: (emotion: string, intensity: number) => void;
+  className?: string;
 }
 
 const PersistentCamera = ({
   minimized = false,
-  onEmotionDetected
+  onEmotionDetected,
+  className
 }: PersistentCameraProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { isTracking, startTracking, stopTracking, setEmotion } = useEmotion();
   const [videoVisible, setVideoVisible] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [detectionIntervalId, setDetectionIntervalId] = useState<NodeJS.Timeout | null>(null);
   
   // Start camera when component mounts or tracking state changes
   useEffect(() => {
@@ -37,6 +40,9 @@ const PersistentCamera = ({
     
     return () => {
       stopCamera();
+      if (detectionIntervalId) {
+        clearInterval(detectionIntervalId);
+      }
     };
   }, [isTracking]);
   
@@ -73,6 +79,11 @@ const PersistentCamera = ({
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
     }
+    
+    if (detectionIntervalId) {
+      clearInterval(detectionIntervalId);
+      setDetectionIntervalId(null);
+    }
   };
   
   // Toggle camera visibility (but keep tracking)
@@ -82,6 +93,11 @@ const PersistentCamera = ({
   
   // Simulate emotion detection (replace with real implementation)
   const startEmotionDetection = () => {
+    // Clear any existing interval
+    if (detectionIntervalId) {
+      clearInterval(detectionIntervalId);
+    }
+    
     const intervalId = setInterval(() => {
       if (!isTracking) {
         clearInterval(intervalId);
@@ -96,9 +112,9 @@ const PersistentCamera = ({
       }
       
       console.log(`Detected emotion: ${emotion}, intensity: ${intensity}`);
-    }, 3000); // Check every 3 seconds
+    }, 1500); // Check every 1.5 seconds
     
-    return () => clearInterval(intervalId);
+    setDetectionIntervalId(intervalId);
   };
   
   // Toggle tracking on/off
@@ -126,7 +142,7 @@ const PersistentCamera = ({
   }
   
   return (
-    <Card className="glass-card overflow-hidden">
+    <Card className={`glass-card overflow-hidden ${className}`}>
       <div className="relative">
         {isTracking && videoVisible && (
           <video
